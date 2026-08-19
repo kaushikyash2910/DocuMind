@@ -1,363 +1,98 @@
 "use client";
+import { useState, useEffect } from "react";
+import DocumentList from "@/components/document-list";
+import MessageBubble from "@/components/message-bubble";
 
-import { useState } from "react";
-
-export default function ChatWindow({ documents = [] }) {
-  const [selectedIds, setSelectedIds] = useState(
-    documents.length > 0 ? [documents[0].id] : []
-  );
-
-  const [input, setInput] = useState("");
+export default function ChatWindow({ documents, initialQuestion }) {
+  const [selectedIds, setSelectedIds] = useState(documents.map((d) => d.id));
   const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
 
-  function toggleDocument(documentId) {
-    setSelectedIds((prev) =>
-      prev.includes(documentId)
-        ? prev.filter((id) => id !== documentId)
-        : [...prev, documentId]
-    );
+  function toggleDoc(id) {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
-  async function handleSend(e) {
-    e.preventDefault();
-
-    if (!input.trim() || selectedIds.length === 0 || loading) {
-      return;
-    }
-
-    const question = input.trim();
-
-    setInput("");
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: question,
-      },
-      {
-        role: "assistant",
-        content: "",
-      },
-    ]);
-
+  async function sendQuestion(question) {
+    if (!question.trim() || selectedIds.length === 0) return;
+    setMessages((prev) => [...prev, { role: "user", content: question }, { role: "assistant", content: "" }]);
     setLoading(true);
-
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          question,
-          documentIds: selectedIds,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, documentIds: selectedIds, conversationId }),
       });
-
-      if (!res.ok) {
-        throw new Error(`Request failed with status ${res.status}`);
-      }
-
-      if (!res.body) {
-        throw new Error("The server did not return a response body.");
-      }
-
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-
       let buffer = "";
-
       while (true) {
         const { done, value } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        buffer += decoder.decode(value, {
-          stream: true,
-        });
-
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
         const parts = buffer.split("\n\n");
-
-        buffer = parts.pop() || "";
-
+        buffer = parts.pop();
         for (const part of parts) {
-          if (!part.startsWith("data: ")) {
-            continue;
-          }
-
-          try {
-            const payload = JSON.parse(part.slice(6));
-
-            const { event, data } = payload;
-
-            if (event === "token") {
-              setMessages((prev) => {
-                const updated = [...prev];
-
-                const last = updated[updated.length - 1];
-
-                if (!last || last.role !== "assistant") {
-                  return prev;
-                }
-
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: last.content + (data?.delta || ""),
-                };
-
-                return updated;
-              });
-            }
-
-            if (event === "done") {
-              setMessages((prev) => {
-                const updated = [...prev];
-
-                const last = updated[updated.length - 1];
-
-                if (!last || last.role !== "assistant") {
-                  return prev;
-                }
-
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: data?.answer || last.content,
-                  steps: data?.steps,
-                  sources: data?.sources || [],
-                };
-
-                return updated;
-              });
-            }
-
-            if (event === "error") {
-              setMessages((prev) => {
-                const updated = [...prev];
-
-                const last = updated[updated.length - 1];
-
-                if (!last || last.role !== "assistant") {
-                  return prev;
-                }
-
-                updated[updated.length - 1] = {
-                  ...last,
-                  content:
-                    "Something went wrong: " +
-                    (data?.message || "Unknown error"),
-                };
-
-                return updated;
-              });
-            }
-          } catch (error) {
-            console.error("Failed to parse streaming event:", error);
+          if (!part.startsWith("data: ")) continue;
+          const { event, data } = JSON.parse(part.slice(6));
+          if (event === "token") {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              updated[updated.length - 1] = { ...last, content: last.content + data.delta };
+              return updated;
+            });
+          } else if (event === "done") {
+            setConversationId(data.conversationId);
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: data.answer, steps: data.steps, sources: data.sources };
+              return updated;
+            });
+          } else if (event === "error") {
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: "Something went wrong: " + data.message };
+              return updated;
+            });
           }
         }
       }
-    } catch (error) {
-      console.error("Chat request failed:", error);
-
-      setMessages((prev) => {
-        const updated = [...prev];
-
-        const last = updated[updated.length - 1];
-
-        if (last?.role === "assistant") {
-          updated[updated.length - 1] = {
-            ...last,
-            content:
-              "Something went wrong while contacting the document assistant.",
-          };
-        }
-
-        return updated;
-      });
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleSend(e) {
+    e.preventDefault();
+    const question = input;
+    setInput("");
+    await sendQuestion(question);
+  }
+
+  useEffect(() => {
+    if (initialQuestion) sendQuestion(initialQuestion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="space-y-6">
-      {/* Document selector */}
-      <div className="border border-[#A98F5A]/30 rounded-xl p-5">
-        <div className="mb-4">
-          <h2 className="font-semibold text-lg">
-            Select documents
-          </h2>
-
-          <p className="text-sm text-gray-500 mt-1">
-            Choose the documents you want the AI to search.
-          </p>
-        </div>
-
-        {documents.length === 0 ? (
-          <div className="text-sm text-gray-500">
-            No documents have been uploaded yet.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {documents.map((document) => {
-              const selected = selectedIds.includes(document.id);
-
-              return (
-                <label
-                  key={document.id}
-                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                    selected
-                      ? "border-[#C1442D] bg-[#C1442D]/5"
-                      : "border-gray-200 hover:border-[#A98F5A]/50"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => toggleDocument(document.id)}
-                    className="mt-1"
-                  />
-
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">
-                      {document.title}
-                    </p>
-
-                    <p className="text-xs text-gray-500 mt-1">
-                      {document.fileName}
-                      {document.chunkCount
-                        ? ` · ${document.chunkCount} chunks`
-                        : ""}
-                    </p>
-
-                    {document.summary && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        {document.summary}
-                      </p>
-                    )}
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        )}
+    <div className="grid grid-cols-3 gap-6">
+      <div className="col-span-1">
+        <h2 className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-wide text-[#A98F5A] mb-3">Documents</h2>
+        <DocumentList documents={documents} selectedIds={selectedIds} onToggle={toggleDoc} />
+        {selectedIds.length === 0 && <p className="text-xs text-[#C1442D] mt-2">Select at least one document to ask questions.</p>}
       </div>
-
-      {/* Chat messages */}
-      <div className="border border-[#A98F5A]/30 rounded-xl overflow-hidden">
-        <div className="min-h-[400px] max-h-[600px] overflow-y-auto p-5 space-y-5">
-          {messages.length === 0 ? (
-            <div className="flex min-h-[350px] items-center justify-center text-center">
-              <div className="max-w-md">
-                <h2 className="text-xl font-semibold">
-                  Ask your documents
-                </h2>
-
-                <p className="text-sm text-gray-500 mt-2">
-                  Select one or more documents above and ask a question.
-                  The AI will search their contents and ground its answer
-                  in the retrieved passages.
-                </p>
-              </div>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={index}
-                className={
-                  message.role === "user"
-                    ? "flex justify-end"
-                    : "flex justify-start"
-                }
-              >
-                <div
-                  className={`max-w-[85%] rounded-xl px-4 py-3 ${
-                    message.role === "user"
-                      ? "bg-[#C1442D] text-white"
-                      : "bg-gray-100 text-gray-900"
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap leading-6">
-                    {message.content ||
-                      (loading && index === messages.length - 1
-                        ? "Thinking..."
-                        : "")}
-                  </p>
-
-                  {/* Agentic search information */}
-                  {message.role === "assistant" &&
-                    message.steps != null && (
-                      <p className="text-xs opacity-60 mt-3">
-                        Agent searches: {message.steps}
-                      </p>
-                    )}
-
-                  {/* Sources */}
-                  {message.role === "assistant" &&
-                    message.sources?.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-gray-300/50">
-                        <p className="text-xs font-semibold mb-2">
-                          Sources
-                        </p>
-
-                        <div className="space-y-2">
-                          {message.sources.map((source, sourceIndex) => (
-                            <div
-                              key={source.id || sourceIndex}
-                              className="text-xs opacity-80"
-                            >
-                              [{sourceIndex + 1}]{" "}
-                              {source.title || source.source || "Document"}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                </div>
-              </div>
-            ))
-          )}
+      <div className="col-span-2 flex flex-col rounded-lg border border-[#A98F5A]/30 h-[600px]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 && <p className="text-sm text-[#F7F3E9]/40">Ask a question about your selected documents.</p>}
+          {messages.map((m, i) => <MessageBubble key={i} message={m} />)}
+          {loading && <p className="text-sm text-[#F7F3E9]/40">Thinking…</p>}
         </div>
-
-        {/* Input */}
-        <form
-          onSubmit={handleSend}
-          className="border-t border-gray-200 p-4"
-        >
-          <div className="flex gap-3">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={loading || selectedIds.length === 0}
-              placeholder={
-                selectedIds.length === 0
-                  ? "Select a document first..."
-                  : "Ask a question about your documents..."
-              }
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-[#C1442D] disabled:bg-gray-100"
-            />
-
-            <button
-              type="submit"
-              disabled={
-                loading ||
-                !input.trim() ||
-                selectedIds.length === 0
-              }
-              className="rounded-lg bg-[#C1442D] px-5 py-3 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Thinking..." : "Ask"}
-            </button>
-          </div>
-
-          {selectedIds.length === 0 && documents.length > 0 && (
-            <p className="text-xs text-gray-500 mt-2">
-              Select at least one document before asking a question.
-            </p>
-          )}
+        <form onSubmit={handleSend} className="border-t border-[#A98F5A]/30 p-3 flex gap-2">
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question…"
+            className="flex-1 rounded border border-[#A98F5A]/40 bg-transparent px-3 py-2 text-sm placeholder:text-[#F7F3E9]/40 focus:outline-none focus:border-[#C1442D]" disabled={loading} />
+          <button type="submit" disabled={loading || !input.trim()} className="rounded bg-[#C1442D] px-4 py-2 text-sm font-medium disabled:opacity-50 hover:bg-[#a83a26] transition-colors">Send</button>
         </form>
       </div>
     </div>

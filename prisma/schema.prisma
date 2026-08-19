@@ -46,3 +46,12 @@ model Message {
   citations      Json?
   createdAt      DateTime     @default(now())
 }
+model AgentTrace {
+  id              String   @id @default(cuid())
+  messageId       String?
+  question        String
+  steps           Int
+  toolCalls       Json
+  totalDurationMs Int
+  createdAt       DateTime @default(now())
+}
