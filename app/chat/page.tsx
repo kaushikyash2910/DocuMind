@@ -19,9 +19,9 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold">{title}</h1>
         <div className="flex gap-2 text-sm font-[family-name:var(--font-mono)]">
-          <a href="/chat" className={`px-4 py-1.5 rounded transition-colors ${!compareMode && !researchMode ? "bg-[#C1442D] text-[#F7F3E9]" : "border border-[#A98F5A]/40 text-[#F7F3E9]/70"}`}>Ask</a>
-          <a href="/chat?mode=compare" className={`px-4 py-1.5 rounded transition-colors ${compareMode ? "bg-[#C1442D] text-[#F7F3E9]" : "border border-[#A98F5A]/40 text-[#F7F3E9]/70"}`}>Compare</a>
-          <a href="/chat?mode=research" className={`px-4 py-1.5 rounded transition-colors ${researchMode ? "bg-[#C1442D] text-[#F7F3E9]" : "border border-[#A98F5A]/40 text-[#F7F3E9]/70"}`}>Research</a>
+          <a href="/chat" className={`px-4 py-1.5 rounded transition-colors ${!compareMode && !researchMode ? "bg-[#C1442D] text-#000000" : "border border-[#A98F5A]/40 text-#DC2626"}`}>Ask</a>
+          <a href="/chat?mode=compare" className={`px-4 py-1.5 rounded transition-colors ${compareMode ? "bg-[#C1442D] text-#000000" : "border border-[#A98F5A]/40 text-#DC2626"}`}>Compare</a>
+          <a href="/chat?mode=research" className={`px-4 py-1.5 rounded transition-colors ${researchMode ? "bg-[#C1442D] text-#000000" : "border border-[#A98F5A]/40 text-#DC2626"}`}>Research</a>
         </div>
       </div>
       {compareMode ? <CompareView documents={documents} /> : researchMode ? <ResearchView documents={documents} /> : <ChatWindow documents={documents} initialQuestion={q} />}

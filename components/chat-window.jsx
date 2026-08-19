@@ -77,22 +77,29 @@ export default function ChatWindow({ documents, initialQuestion }) {
   }, []);
 
   return (
-    <div className="grid grid-cols-3 gap-6">
-      <div className="col-span-1">
-        <h2 className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-wide text-[#A98F5A] mb-3">Documents</h2>
+    <div className="space-y-8">
+      <div>
+        <h2 className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-wide text-[#A98F5A] mb-3">
+          Documents
+        </h2>
         <DocumentList documents={documents} selectedIds={selectedIds} onToggle={toggleDoc} />
-        {selectedIds.length === 0 && <p className="text-xs text-[#C1442D] mt-2">Select at least one document to ask questions.</p>}
+        {selectedIds.length === 0 && (
+          <p className="text-xs text-[#C1442D] mt-2">Select at least one document to ask questions.</p>
+        )}
       </div>
-      <div className="col-span-2 flex flex-col rounded-lg border border-[#A98F5A]/30 h-[600px]">
+
+      <div className="flex flex-col rounded-lg border border-[#A98F5A]/30 h-[500px]">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && <p className="text-sm text-[#F7F3E9]/40">Ask a question about your selected documents.</p>}
+          {messages.length === 0 && <p className="text-sm text-[#C1442D]">Ask a question about your selected documents.</p>}
           {messages.map((m, i) => <MessageBubble key={i} message={m} />)}
-          {loading && <p className="text-sm text-[#F7F3E9]/40">Thinking…</p>}
+          {loading && <p className="text-sm text-[#C1442D]">Thinking…</p>}
         </div>
-        <form onSubmit={handleSend} className="border-t border-[#A98F5A]/30 p-3 flex gap-2">
+        <form onSubmit={handleSend} className="border-t border-[#C1442D] p-3 flex gap-2">
           <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question…"
-            className="flex-1 rounded border border-[#A98F5A]/40 bg-transparent px-3 py-2 text-sm placeholder:text-[#F7F3E9]/40 focus:outline-none focus:border-[#C1442D]" disabled={loading} />
-          <button type="submit" disabled={loading || !input.trim()} className="rounded bg-[#C1442D] px-4 py-2 text-sm font-medium disabled:opacity-50 hover:bg-[#a83a26] transition-colors">Send</button>
+            className="flex-1 rounded border border-[#A98F5A]/40 bg-transparent px-3 py-2 text-sm placeholder:text-[#C1442D] focus:outline-none focus:border-[#C1442D]" disabled={loading} />
+          <button type="submit" disabled={loading || !input.trim()} className="rounded bg-[#C1442D] px-4 py-2 text-sm font-medium disabled:opacity-50 hover:bg-[#a83a26] transition-colors">
+            Send
+          </button>
         </form>
       </div>
     </div>
