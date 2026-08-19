@@ -1,0 +1,7 @@
+[
+    {
+      "question": "What is the main topic of this document?",
+      "documentIds": ["paste-a-real-document-id-here"],
+      "expectedKeyword": "put a word or phrase you know should appear in a correct answer"
+    }
+  ]
