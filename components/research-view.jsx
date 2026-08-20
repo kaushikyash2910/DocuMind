@@ -39,7 +39,7 @@ export default function ResearchView({ documents }) {
             </p>
             <div className="space-y-2">
               {result.findings.map((f, i) => (
-                <details key={i} className="rounded bg-[#EAE0C8]/10 px-4 py-2">
+                <details key={i} className="rounded bg-[#A98F5A] px-4 py-2">
                   <summary className="text-sm cursor-pointer text-[#F7F3E9]">{f.subQuestion}</summary>
                   <p className="text-sm text-[#F7F3E9]/70 mt-2">{f.answer}</p>
                 </details>
