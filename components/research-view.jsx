@@ -46,9 +46,20 @@ export default function ResearchView({ documents }) {
               ))}
             </div>
           </div>
+
           <div className="rounded-lg bg-[#EAE0C8] p-5 text-[#241F1A]">
-            <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-wide text-[#241F1A]/50 mb-2">Synthesized answer</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-wide text-[#241F1A]/50">
+                Synthesized answer
+              </p>
+              <p className={`font-[family-name:var(--font-mono)] text-xs ${result.validated ? "text-green-700" : "text-[#C1442D]"}`}>
+                {result.validated ? "✓ Validated" : "⚠ Unverified"}
+              </p>
+            </div>
             <ReactMarkdown>{result.answer}</ReactMarkdown>
+            {!result.validated && result.validationIssue && (
+              <p className="mt-2 text-xs text-[#C1442D]">Validator flagged: {result.validationIssue}</p>
+            )}
           </div>
         </div>
       )}
